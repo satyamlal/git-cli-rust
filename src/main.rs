@@ -1,4 +1,5 @@
-use flate2::read::ZlibDecoder;
+use flate2::{Compression, read::ZlibDecoder, write::ZlibEncoder};
+use sha1::{Digest, Sha1};
 use std::{
     env,
     fs::{self, File},
@@ -52,6 +53,44 @@ fn main() {
             io::stdout()
                 .write_all(content)
                 .expect("Unable to write to file!");
+        }
+        "hash-object" => {
+            if args.len() < 4 || args[2] != "-w" {
+                eprintln!("Usage: hash-object -w <file>");
+                return;
+            }
+
+            let file_path = &args[3];
+            let content = fs::read(&file_path).expect("Failed to read!");
+            let header = format!("blob {}\0", content.len());
+
+            let mut payload = header.into_bytes();
+            payload.extend(&content);
+
+            let mut hasher = Sha1::new();
+            hasher.update(&payload);
+            let hash_result = hasher.finalize();
+
+            let hash_hex = hex::encode(hash_result);
+            let dir = &hash_hex[0..2];
+            let file_name = &hash_hex[2..];
+            let dir_path = format!(".git/objects/{}", dir);
+
+            fs::create_dir_all(&dir_path).expect("Failed to create object directory!");
+
+            let object_path = format!("{}/{}", dir_path, file_name);
+
+            let file = File::create(&object_path).expect("Failed to create object file!");
+            let mut encoder = ZlibEncoder::new(file, Compression::default());
+
+            encoder
+                .write_all(&payload)
+                .expect("Failed to write compressed daata!");
+            encoder
+                .finish()
+                .expect("Failed to finish compression stream!");
+
+            println!("{}", hash_hex);
         }
         _ => {
             println!("Unknown command: {}", args[1]);
