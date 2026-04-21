@@ -1,3 +1,4 @@
+use clap::{Parser, Subcommand};
 use flate2::{Compression, read::ZlibDecoder, write::ZlibEncoder};
 use sha1::{Digest, Sha1};
 use std::{
@@ -85,7 +86,7 @@ fn main() {
 
             encoder
                 .write_all(&payload)
-                .expect("Failed to write compressed daata!");
+                .expect("Failed to write compressed data!");
             encoder
                 .finish()
                 .expect("Failed to finish compression stream!");
