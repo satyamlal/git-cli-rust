@@ -7,6 +7,26 @@ use std::{
     io::{self, Read, Write},
 };
 
+#[derive(Parser)]
+#[command(name = "mygit", about = "Git clone CLI app")]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[command(subcommand)]
+enum Commands {
+    Init,
+    CatFile {
+        #[arg(short = "-p")]
+        hash: String,
+    },
+    HashObject {
+        #[arg(short = "-w")]
+        file_path: String,
+    },
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
