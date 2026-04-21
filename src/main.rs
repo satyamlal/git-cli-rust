@@ -2,7 +2,6 @@ use clap::{Parser, Subcommand};
 use flate2::{Compression, read::ZlibDecoder, write::ZlibEncoder};
 use sha1::{Digest, Sha1};
 use std::{
-    env,
     fs::{self, File},
     io::{self, Read, Write},
 };
@@ -14,29 +13,24 @@ struct Cli {
     command: Commands,
 }
 
-#[command(subcommand)]
+#[derive(Subcommand)]
 enum Commands {
     Init,
     CatFile {
-        #[arg(short = "-p")]
+        #[arg(short = 'p')]
         hash: String,
     },
     HashObject {
-        #[arg(short = "-w")]
+        #[arg(short = 'w')]
         file_path: String,
     },
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let cli = Cli::parse();
 
-    if args.len() < 2 {
-        eprintln!("Missing terminal commands!");
-        return;
-    }
-
-    match args[1].as_str() {
-        "init" => {
+    match cli.command {
+        Commands::Init => {
             fs::create_dir(".git").unwrap();
             fs::create_dir(".git/objects").unwrap();
             fs::create_dir(".git/objects/refs").unwrap();
@@ -44,19 +38,12 @@ fn main() {
             fs::write(".git/HEAD", "ref: refs/heads/main\n").unwrap();
             println!("Initialized git directory!")
         }
-        "cat-file" => {
-            if args.len() < 4 || args[2] != "-p" {
-                eprintln!("Usage: cat-file -p <blob_hash>");
-                return;
-            }
-
-            let hash = &args[3];
+        Commands::CatFile { hash } => {
             let dir = &hash[0..2];
             let file_name = &hash[2..];
             let path = format!("'./git/objects/{}/{}", dir, file_name);
 
             let file = File::open(&path).expect("Unable to find blob!");
-
             let mut decoder = ZlibDecoder::new(file);
             let mut decompressed_data = Vec::new();
 
@@ -75,13 +62,7 @@ fn main() {
                 .write_all(content)
                 .expect("Unable to write to file!");
         }
-        "hash-object" => {
-            if args.len() < 4 || args[2] != "-w" {
-                eprintln!("Usage: hash-object -w <file>");
-                return;
-            }
-
-            let file_path = &args[3];
+        Commands::HashObject { file_path } => {
             let content = fs::read(&file_path).expect("Failed to read!");
             let header = format!("blob {}\0", content.len());
 
@@ -112,9 +93,6 @@ fn main() {
                 .expect("Failed to finish compression stream!");
 
             println!("{}", hash_hex);
-        }
-        _ => {
-            println!("Unknown command: {}", args[1]);
         }
     }
 }
