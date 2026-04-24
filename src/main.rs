@@ -24,6 +24,11 @@ enum Commands {
         #[arg(short = 'w')]
         file_path: String,
     },
+    LsTree {
+        #[arg(long = "name-only")]
+        name_only: bool,
+        hash: String,
+    },
 }
 
 fn main() {
@@ -41,7 +46,7 @@ fn main() {
         Commands::CatFile { hash } => {
             let dir = &hash[0..2];
             let file_name = &hash[2..];
-            let path = format!("'./git/objects/{}/{}", dir, file_name);
+            let path = format!("./git/objects/{}/{}", dir, file_name);
 
             let file = File::open(&path).expect("Unable to find blob!");
             let mut decoder = ZlibDecoder::new(file);
