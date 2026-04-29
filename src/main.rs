@@ -29,6 +29,7 @@ enum Commands {
         name_only: bool,
         hash: String,
     },
+    WriteTree,
 }
 
 fn main() {
