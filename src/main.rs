@@ -33,34 +33,53 @@ enum Commands {
     WriteTree,
 }
 
-// fn write_tree(dir: &Path) -> [u8; 20] {
-//     let mut entries = Vec::new();
-//     let read_dir = fs::read_dir(dir).expect("Failed to read directory!");
+fn write_tree(dir: &Path) -> [u8; 20] {
+    let mut entries = Vec::new();
+    let read_dir = fs::read_dir(dir).expect("Failed to read directory!");
 
-//     for entry_result in read_dir {
-//         let entry = entry_result.expect("Failed to read entry!");
+    for entry_result in read_dir {
+        let entry = entry_result.expect("Failed to read entry!");
 
-//         let file_name = entry
-//             .file_name()
-//             .into_string()
-//             .expect("Invalid UTF-8 filename!");
+        let file_name = entry
+            .file_name()
+            .into_string()
+            .expect("Invalid UTF-8 filename!");
 
-//         if entry.file_name() == ".git" {
-//             continue;
-//         }
+        if entry.file_name() == ".git" {
+            continue;
+        }
 
-//         let path = entry.path();
-//         let metadata = entry.metadata().expect("Failed to get metadata!");
+        let path = entry.path();
+        let metadata = entry.metadata().expect("Failed to get metadata!");
 
-//         if metadata.is_dir() {
-//             let sha = write_tree(&path);
-//             entries.path((file_name, "40000".to_string(), sha));
-//         } else {
-//             let content = fs::read(&path).expect("Failed to read file!");
-//             let header = format!("blob {}\0", content.len());
-//         }
-//     }
-// }
+        if metadata.is_dir() {
+            let sha = write_tree(&path);
+            entries.path((file_name, "40000".to_string(), sha));
+        } else {
+            let content = fs::read(&path).expect("Failed to read file!");
+            let header = format!("blob {}\0", content.len());
+
+            payload.extend(&content);
+
+            let sha = write_and_hash(&payload);
+            entries.push((file_name, "100644".to_string(), sha));
+        }
+    }
+    entries.sort_by(|a, b| a.0.comp(&b.0));
+
+    let mut tree_content = Vec::new();
+
+    for (name, mode, sha) in entries {
+        tree_content.extend_from_slice(format!("{} {}\0", mode, name).as_bytes());
+        tree_content.extend_from_slice(&sha);
+    }
+
+    let header = format!("tree {}\0", tree_content.len());
+    let mut final_payload = header.into_bytes();
+    final_payload.extend(tree_content);
+
+    hash_and_write(&final_payload);
+}
 
 fn main() {
     let cli = Cli::parse();
