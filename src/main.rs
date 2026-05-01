@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use flate2::{Compression, read::ZlibDecoder, write::ZlibEncoder};
 use sha1::{Digest, Sha1};
 use std::{
+    env,
     fs::{self, File},
     io::{self, Read, Write},
 };
@@ -31,6 +32,35 @@ enum Commands {
     },
     WriteTree,
 }
+
+// fn write_tree(dir: &Path) -> [u8; 20] {
+//     let mut entries = Vec::new();
+//     let read_dir = fs::read_dir(dir).expect("Failed to read directory!");
+
+//     for entry_result in read_dir {
+//         let entry = entry_result.expect("Failed to read entry!");
+
+//         let file_name = entry
+//             .file_name()
+//             .into_string()
+//             .expect("Invalid UTF-8 filename!");
+
+//         if entry.file_name() == ".git" {
+//             continue;
+//         }
+
+//         let path = entry.path();
+//         let metadata = entry.metadata().expect("Failed to get metadata!");
+
+//         if metadata.is_dir() {
+//             let sha = write_tree(&path);
+//             entries.path((file_name, "40000".to_string(), sha));
+//         } else {
+//             let content = fs::read(&path).expect("Failed to read file!");
+//             let header = format!("blob {}\0", content.len());
+//         }
+//     }
+// }
 
 fn main() {
     let cli = Cli::parse();
@@ -140,6 +170,13 @@ fn main() {
                 }
                 i = null_pos + 1 + 20;
             }
+        }
+        Commands::WriteTree => {
+            let current_dir = env::current_dir().expect("Failed to get current directory path!");
+            let final_sha_bytes = write_tree(current_dir);
+            let final_sha_hex = hex::encode(final_sha_bytes);
+
+            println!("{}", final_sha_hex);
         }
     }
 }
