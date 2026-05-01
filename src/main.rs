@@ -5,6 +5,7 @@ use std::{
     env,
     fs::{self, File},
     io::{self, Read, Write},
+    path::Path,
 };
 
 #[derive(Parser)]
@@ -33,6 +34,35 @@ enum Commands {
     WriteTree,
 }
 
+fn hash_and_write(payload: &[u8]) -> [u8; 20] {
+    let mut hasher = Sha1::new();
+    hasher.update(payload);
+    let hash_result = hasher.finalize();
+
+    let mut sha_bytes = [0u8; 20];
+    sha_bytes.copy_from_slice(&hash_result);
+
+    let hash_hex = hex::encode(hash_result);
+    let dir = &hash_hex[0..2];
+    let file_name = &hash_hex[2..];
+    let dir_path = format!(".git/objects/{}", dir);
+
+    fs::create_dir_all(&dir_path).expect("Failed to create object directory!");
+    let object_path = format!("{}/{}", dir_path, file_name);
+    let file = File::create(&object_path).expect("Failed to create object file!");
+
+    let mut encoder = ZlibEncoder::new(file, Compression::default());
+
+    encoder
+        .write_all(payload)
+        .expect("Failed to write compressed data!");
+    encoder
+        .finish()
+        .expect("Failed to finish compression stream!");
+
+    sha_bytes
+}
+
 fn write_tree(dir: &Path) -> [u8; 20] {
     let mut entries = Vec::new();
     let read_dir = fs::read_dir(dir).expect("Failed to read directory!");
@@ -54,21 +84,21 @@ fn write_tree(dir: &Path) -> [u8; 20] {
 
         if metadata.is_dir() {
             let sha = write_tree(&path);
-            entries.path((file_name, "40000".to_string(), sha));
+            entries.push((file_name, "40000".to_string(), sha));
         } else {
             let content = fs::read(&path).expect("Failed to read file!");
             let header = format!("blob {}\0", content.len());
 
+            let mut payload = header.into_bytes();
             payload.extend(&content);
 
-            let sha = write_and_hash(&payload);
+            let sha = hash_and_write(&payload);
             entries.push((file_name, "100644".to_string(), sha));
         }
     }
-    entries.sort_by(|a, b| a.0.comp(&b.0));
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
 
     let mut tree_content = Vec::new();
-
     for (name, mode, sha) in entries {
         tree_content.extend_from_slice(format!("{} {}\0", mode, name).as_bytes());
         tree_content.extend_from_slice(&sha);
@@ -78,7 +108,7 @@ fn write_tree(dir: &Path) -> [u8; 20] {
     let mut final_payload = header.into_bytes();
     final_payload.extend(tree_content);
 
-    hash_and_write(&final_payload);
+    hash_and_write(&final_payload)
 }
 
 fn main() {
@@ -192,7 +222,7 @@ fn main() {
         }
         Commands::WriteTree => {
             let current_dir = env::current_dir().expect("Failed to get current directory path!");
-            let final_sha_bytes = write_tree(current_dir);
+            let final_sha_bytes = write_tree(&current_dir);
             let final_sha_hex = hex::encode(final_sha_bytes);
 
             println!("{}", final_sha_hex);
