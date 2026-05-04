@@ -32,6 +32,13 @@ enum Commands {
         hash: String,
     },
     WriteTree,
+    CommitTree {
+        tree_sha: String,
+        #[arg(short = 'p')]
+        parent_sha: Option<String>,
+        #[arg(short = 'm')]
+        message: String,
+    },
 }
 
 fn hash_and_write(payload: &[u8]) -> [u8; 20] {
@@ -226,6 +233,13 @@ fn main() {
             let final_sha_hex = hex::encode(final_sha_bytes);
 
             println!("{}", final_sha_hex);
+        }
+        Commands::CommitTree {
+            tree_sha,
+            parent_sha,
+            message,
+        } => {
+            //Todo: complete the logic
         }
     }
 }
