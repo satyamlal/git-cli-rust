@@ -39,6 +39,10 @@ enum Commands {
         #[arg(short = 'm')]
         message: String,
     },
+    Clone {
+        url: String,
+        directory: String,
+    },
 }
 
 fn hash_and_write(payload: &[u8]) -> [u8; 20] {
