@@ -1,8 +1,8 @@
-use flate2::{Compression, read::ZlibDecoder, write::ZlibEncoder};
+use flate2::{Compression, write::ZlibEncoder};
 use sha1::{Digest, Sha1};
 use std::{
     fs::{self, File},
-    io::{self, Read, Write},
+    io::Write,
 };
 
 pub fn hash_and_write(payload: &[u8]) -> [u8; 20] {
